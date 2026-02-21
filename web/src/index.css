@@ -1,27 +1,48 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@500;600;700&display=swap");
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #3b82f6;
+  --font-sans: "Manrope", "Outfit", "Segoe UI", "Helvetica Neue", sans-serif;
+
+  --color-primary: #2d64d8;
   --color-primary-foreground: #ffffff;
-  --color-background: #ffffff;
-  --color-foreground: #0f172a;
+  --color-background: #f4f7fb;
+  --color-foreground: #101828;
   --color-card: #ffffff;
-  --color-card-foreground: #0f172a;
-  --color-secondary: #f1f5f9;
-  --color-secondary-foreground: #0f172a;
-  --color-muted: #f1f5f9;
+  --color-card-foreground: #101828;
+  --color-secondary: #eef2f7;
+  --color-secondary-foreground: #111827;
+  --color-muted: #eef2f7;
   --color-muted-foreground: #64748b;
-  --color-accent: #f1f5f9;
+  --color-accent: #eef2f7;
   --color-accent-foreground: #0f172a;
-  --color-destructive: #ef4444;
+  --color-destructive: #e04f4f;
   --color-destructive-foreground: #ffffff;
   --color-border: #e2e8f0;
-  --color-input: #e2e8f0;
-  --color-ring: #3b82f6;
+  --color-input: #dfe5ee;
+  --color-ring: #2d64d8;
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
 }
 
 body {
-  background-color: var(--color-background);
+  margin: 0;
+  font-family: var(--font-sans);
   color: var(--color-foreground);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  background-color: var(--color-background);
+}
+
+.bg-app {
+  background-image:
+    radial-gradient(circle at 10% 0%, rgba(188, 214, 255, 0.55), transparent 35%),
+    radial-gradient(circle at 100% 100%, rgba(230, 242, 255, 0.6), transparent 35%);
+  background-color: var(--color-background);
 }

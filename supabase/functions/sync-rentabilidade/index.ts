@@ -28,6 +28,12 @@ const SYNC_ADMIN_SECRET = Deno.env.get("SYNC_ADMIN_SECRET") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
+const corsHeaders: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-admin-secret, x-trigger, x-force-error",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 function b64uBytes(bytes: Uint8Array): string {
   let s = "";
   for (let i = 0; i < bytes.length; i += 1) s += String.fromCharCode(bytes[i]);
@@ -318,10 +324,20 @@ async function insertRawSnapshot(sourceHash: string, rows: Cell[][]): Promise<vo
 }
 
 function json(status: number, body: Record<string, unknown>): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      ...corsHeaders,
+    },
+  });
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   if (!req.headers.get("authorization") && req.headers.get("x-admin-secret") !== SYNC_ADMIN_SECRET) {
     return json(401, { ok: false, status: "error", message: "Unauthorized" });
   }

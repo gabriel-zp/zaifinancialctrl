@@ -1,17 +1,18 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
-import { useAuth } from '@/context/AuthContext'
-import LoginPage from '@/pages/Login'
-import DashboardPage from '@/pages/Dashboard'
+import type { ReactNode } from "react"
+import { Navigate, Route, Routes } from "react-router-dom"
+import { AppShell } from "@/components/layout/app-shell"
+import { LoadingScreen } from "@/components/shared/loading-screen"
+import { useAuth } from "@/hooks/use-auth"
+import AssetPage from "@/pages/Asset"
+import DashboardPage from "@/pages/Dashboard"
+import LoginPage from "@/pages/Login"
+import NotFoundPage from "@/pages/NotFound"
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   if (!user) {
@@ -21,19 +22,56 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function PublicOnlyRoute({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return <LoadingScreen />
+  }
+
+  if (user) {
+    return <Navigate to="/dashboard" replace />
+  }
+
+  return <>{children}</>
+}
+
 function App() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/login"
+        element={
+          <PublicOnlyRoute>
+            <LoginPage />
+          </PublicOnlyRoute>
+        }
+      />
+
       <Route
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <DashboardPage />
+            <AppShell>
+              <DashboardPage />
+            </AppShell>
           </ProtectedRoute>
         }
       />
+
+      <Route
+        path="/ativo"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <AssetPage />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
 }

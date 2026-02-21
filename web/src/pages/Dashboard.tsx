@@ -1,193 +1,300 @@
-import { useEffect, useState } from 'react'
-import { useAuth } from '@/context/AuthContext'
-import { supabase } from '@/lib/supabase'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Loader2, RefreshCw } from 'lucide-react'
+import { useMemo, useState } from "react"
+import { RefreshCw } from "lucide-react"
+import {
+  AllocationDonutChart,
+  PatrimonioChart,
+  RentabilidadeChart,
+  RetornoAcumuladoChart,
+} from "@/components/charts/financial-charts"
+import { DateRangeSlider } from "@/components/shared/date-range-slider"
+import { StatusPill } from "@/components/shared/status-pill"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { canViewAnalyticsData } from "@/config/access"
+import { useAnalyticsData } from "@/hooks/use-analytics-data"
+import { useAuth } from "@/hooks/use-auth"
+import { useSync } from "@/hooks/use-sync"
 
-interface SyncRun {
-  id: string
-  started_at: string
-  finished_at: string | null
-  status: string
-  trigger: string
-  rows_written: number | null
-  message: string | null
+function formatDate(value: string) {
+  return new Date(value).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
+function formatMoney(value: number): string {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+function formatPercent(value: number): string {
+  return `${(value * 100).toFixed(2)}%`
+}
+
+function KpiCard({ title, value, subtitle }: { title: string; value: string; subtitle: string }) {
+  return (
+    <Card className="rounded-2xl border-slate-200 shadow-none">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium text-slate-500">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-3xl font-semibold tracking-tight text-slate-900">{value}</p>
+        <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
+      </CardContent>
+    </Card>
+  )
 }
 
 export default function DashboardPage() {
-  const { user, signOut } = useAuth()
-  const [lastSync, setLastSync] = useState<SyncRun | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [syncing, setSyncing] = useState(false)
+  const { user } = useAuth()
+  const isAuthorizedForAnalytics = canViewAnalyticsData(user?.email)
+  const [dateRange, setDateRange] = useState<[number, number]>([0, 0])
 
-  const fetchLastSync = async () => {
-    const { data } = await supabase
-      .from('sync_runs')
-      .select('*')
-      .order('started_at', { ascending: false })
-      .limit(1)
-      .single()
-    
-    if (data) {
-      setLastSync(data as SyncRun)
+  const { lastRun, isLoading, isSyncing, error, runSync, refresh } = useSync()
+  const {
+    portfolio,
+    allocation,
+    metrics,
+    isLoading: isAnalyticsLoading,
+    error: analyticsError,
+  } = useAnalyticsData(isAuthorizedForAnalytics)
+
+  const safeDateRange = useMemo<[number, number]>(() => {
+    const maxIndex = Math.max(0, portfolio.length - 1)
+
+    if (portfolio.length <= 1) {
+      return [0, 0]
     }
-    setLoading(false)
-  }
 
-  useEffect(() => {
-    fetchLastSync()
-  }, [])
-
-  const handleSync = async () => {
-    setSyncing(true)
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-rentabilidade`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(session 
-              ? { 'Authorization': `Bearer ${session.access_token}` }
-              : { 'x-admin-secret': import.meta.env.VITE_SYNC_ADMIN_SECRET || '' }
-            ),
-            'x-trigger': 'manual',
-          },
-        }
-      )
-
-      if (!response.ok) {
-        throw new Error('Sync failed')
-      }
-
-      await fetchLastSync()
-    } catch (error) {
-      console.error('Sync error:', error)
-    } finally {
-      setSyncing(false)
+    if (dateRange[0] === 0 && dateRange[1] === 0) {
+      return [0, maxIndex]
     }
-  }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'success': return 'bg-green-500'
-      case 'error': return 'bg-red-500'
-      case 'running': return 'bg-blue-500'
-      case 'skipped': return 'bg-yellow-500'
-      default: return 'bg-gray-500'
+    const start = Math.min(Math.max(0, dateRange[0]), maxIndex)
+    const end = Math.min(Math.max(start, dateRange[1]), maxIndex)
+
+    return [start, end]
+  }, [dateRange, portfolio.length])
+
+  const filteredPortfolio = useMemo(() => {
+    if (!portfolio.length) {
+      return []
     }
-  }
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
+    const [start, end] = safeDateRange
+    return portfolio.slice(start, end + 1)
+  }, [portfolio, safeDateRange])
+
+  const filteredRangeLabels = useMemo(() => {
+    if (!filteredPortfolio.length) {
+      return { start: "-", end: "-" }
+    }
+
+    return {
+      start: filteredPortfolio[0].mesLabel,
+      end: filteredPortfolio[filteredPortfolio.length - 1].mesLabel,
+    }
+  }, [filteredPortfolio])
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-xl font-bold text-gray-900">ZAI Financial</h1>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">{user?.email}</span>
-              <Button variant="outline" size="sm" onClick={() => signOut()}>
-                Sign Out
+    <div className="space-y-6">
+      <section className="grid gap-4 xl:grid-cols-[2fr_1fr]">
+        <Card className="rounded-2xl border-slate-200 bg-slate-50/60 shadow-none">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div>
+              <CardTitle className="text-base text-slate-900">Ultima sincronizacao</CardTitle>
+              <CardDescription>Status da pipeline Sheets para Supabase</CardDescription>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={isLoading || isSyncing}>
+                Atualizar status
+              </Button>
+              <Button size="sm" className="gap-2" onClick={() => void runSync()} disabled={isSyncing}>
+                <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
+                Sync now
               </Button>
             </div>
-          </div>
-        </div>
-      </header>
+          </CardHeader>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Última Sincronização</CardTitle>
-              <Button 
-                size="sm" 
-                onClick={handleSync} 
-                disabled={syncing}
-                className="gap-2"
-              >
-                {syncing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-                Sync Now
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex items-center gap-2 text-gray-500">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Carregando...
-                </div>
-              ) : lastSync ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${getStatusColor(lastSync.status)}`} />
-                    <span className="text-2xl font-bold capitalize">{lastSync.status}</span>
+          <CardContent>
+            {isLoading ? (
+              <p className="text-sm text-slate-500">Carregando status...</p>
+            ) : lastRun ? (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                  <p className="text-xs text-slate-500">Status</p>
+                  <div className="mt-1">
+                    <StatusPill status={lastRun.status} />
                   </div>
-                  <p className="text-sm text-gray-500">
-                    {formatDate(lastSync.started_at)}
-                  </p>
-                  {lastSync.rows_written && (
-                    <p className="text-sm text-gray-500">
-                      {lastSync.rows_written} rows written
-                    </p>
-                  )}
                 </div>
-              ) : (
-                <p className="text-gray-500">Nenhuma sincronização encontrada</p>
-              )}
-            </CardContent>
-          </Card>
+                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                  <p className="text-xs text-slate-500">Inicio</p>
+                  <p className="mt-1 text-sm font-medium text-slate-900">{formatDate(lastRun.started_at)}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                  <p className="text-xs text-slate-500">Linhas escritas</p>
+                  <p className="mt-1 text-sm font-medium text-slate-900">{lastRun.rows_written ?? "-"}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                  <p className="text-xs text-slate-500">Trigger</p>
+                  <p className="mt-1 text-sm font-medium capitalize text-slate-900">{lastRun.trigger}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Nenhuma sincronizacao encontrada.</p>
+            )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Patrimônio Total</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">R$ --</div>
-              <p className="text-xs text-gray-500">Em breve</p>
-            </CardContent>
-          </Card>
+            {error ? (
+              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                {error}
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Rentabilidade</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">--%</div>
-              <p className="text-xs text-gray-500">Em breve</p>
-            </CardContent>
-          </Card>
-        </div>
+        <Card className="rounded-2xl border-slate-200 shadow-none">
+          <CardHeader>
+            <CardTitle className="text-base">Roadmap imediato</CardTitle>
+            <CardDescription>Comparativo com IBOV e CDI entra na proxima etapa.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-slate-600">
+            <p>- Graficos temporais interativos com tooltip</p>
+            <p>- Distribuicao da carteira no mes mais recente</p>
+            <p>- Controle de acesso por email autorizado</p>
+          </CardContent>
+        </Card>
+      </section>
 
-        <div className="mt-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Gráficos em breve</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-500">
-                Os gráficos de evolução do patrimônio, rentabilidade e retorno acumulado 
-                serão implementados nas próximas etapas.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
+      {!isAuthorizedForAnalytics ? (
+        <Card className="rounded-2xl border-amber-200 bg-amber-50 shadow-none">
+          <CardHeader>
+            <CardTitle className="text-base text-amber-800">Acesso restrito aos dados financeiros</CardTitle>
+            <CardDescription className="text-amber-700">
+              Seu usuario esta autenticado, mas os graficos de rentabilidade estao liberados somente para
+              gzimmermannp@gmail.com e nassermelo@gmail.com.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : null}
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          title="Patrimonio total"
+          value={isAuthorizedForAnalytics ? formatMoney(metrics.currentPatrimonio) : "Restrito"}
+          subtitle="Carteira consolidada"
+        />
+        <KpiCard
+          title="Rentabilidade mes"
+          value={isAuthorizedForAnalytics ? formatPercent(metrics.currentRentabilidade) : "Restrito"}
+          subtitle="Base: acao Patrimonio"
+        />
+        <KpiCard
+          title="Retorno acumulado"
+          value={isAuthorizedForAnalytics ? formatPercent(metrics.currentRetornoAcumulado) : "Restrito"}
+          subtitle="Acumulado multiplicativo"
+        />
+        <KpiCard
+          title="Comparativo mercado"
+          value="Em breve"
+          subtitle="Carteira vs IBOV vs CDI"
+        />
+      </section>
+
+      {isAuthorizedForAnalytics && portfolio.length > 1 && !isAnalyticsLoading ? (
+        <DateRangeSlider
+          min={0}
+          max={portfolio.length - 1}
+          value={safeDateRange}
+          startLabel={filteredRangeLabels.start}
+          endLabel={filteredRangeLabels.end}
+          onValueChange={setDateRange}
+        />
+      ) : null}
+
+      {isAuthorizedForAnalytics ? (
+        <>
+          {analyticsError ? (
+            <Card className="rounded-2xl border-rose-200 bg-rose-50 shadow-none">
+              <CardHeader>
+                <CardTitle className="text-base text-rose-700">Falha ao carregar dados do dashboard</CardTitle>
+                <CardDescription className="text-rose-600">{analyticsError}</CardDescription>
+              </CardHeader>
+            </Card>
+          ) : null}
+
+          {isAnalyticsLoading ? (
+            <Card className="rounded-2xl border-slate-200 shadow-none">
+              <CardHeader>
+                <CardTitle className="text-base">Carregando graficos...</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64 animate-pulse rounded-xl bg-slate-100" />
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <section className="grid gap-4 xl:grid-cols-2">
+                <Card className="rounded-2xl border-slate-200 shadow-none">
+                  <CardHeader>
+                    <CardTitle className="text-base">Evolucao do patrimonio</CardTitle>
+                    <CardDescription>
+                      Passe o cursor para ver os valores mensais detalhados.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <PatrimonioChart data={filteredPortfolio} />
+                  </CardContent>
+                </Card>
+
+                <Card className="rounded-2xl border-slate-200 shadow-none">
+                  <CardHeader>
+                    <CardTitle className="text-base">Rentabilidade mensal</CardTitle>
+                    <CardDescription>
+                      Visual interativo no estilo de analytics com barras arredondadas.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <RentabilidadeChart data={filteredPortfolio} />
+                  </CardContent>
+                </Card>
+              </section>
+
+              <section className="grid gap-4 xl:grid-cols-2">
+                <Card className="rounded-2xl border-slate-200 shadow-none">
+                  <CardHeader>
+                    <CardTitle className="text-base">Retorno acumulado</CardTitle>
+                    <CardDescription>
+                      Curva de performance acumulada ao longo do tempo.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <RetornoAcumuladoChart data={filteredPortfolio} />
+                  </CardContent>
+                </Card>
+
+                <Card className="rounded-2xl border-slate-200 shadow-none">
+                  <CardHeader>
+                    <CardTitle className="text-base">Distribuicao da carteira</CardTitle>
+                    <CardDescription>
+                      Alocacao percentual por ativo no mes mais recente.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <AllocationDonutChart data={allocation} />
+                  </CardContent>
+                </Card>
+              </section>
+            </>
+          )}
+        </>
+      ) : null}
     </div>
   )
 }

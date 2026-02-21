@@ -1,73 +1,76 @@
-# React + TypeScript + Vite
+# ZAI Financial Web
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend base do projeto, seguindo o PRD:
 
-Currently, two official plugins are available:
+- React + Vite + TypeScript
+- TailwindCSS + componentes base estilo shadcn
+- Supabase Auth (login/logout)
+- Base para dashboard e pagina de analise por ativo
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Requisitos
 
-## React Compiler
+- Node.js 20+
+- NPM 10+
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Setup local
 
-## Expanding the ESLint configuration
+1. Instale dependencias:
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+2. Crie o arquivo `.env` a partir de `.env.example`:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cp .env.example .env
 ```
+
+3. Preencha as variaveis:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY` (recomendado)
+- `VITE_SUPABASE_ANON_KEY` (legacy, opcional)
+- `VITE_SYNC_ADMIN_SECRET` (opcional na fase inicial)
+
+4. Rode em desenvolvimento:
+
+```bash
+npm run dev
+```
+
+## Scripts
+
+- `npm run dev`: ambiente de desenvolvimento
+- `npm run lint`: lint
+- `npm run typecheck`: checagem de tipos
+- `npm run build`: build de producao
+- `npm run preview`: preview local da build
+
+## Estrutura principal
+
+- `src/App.tsx`: roteamento e guards de autenticacao
+- `src/context/AuthContext.tsx`: sessao e operacoes de auth
+- `src/services/sync-service.ts`: leitura de `sync_runs` e trigger da sync
+- `src/pages/Login.tsx`: tela de autenticacao
+- `src/pages/Dashboard.tsx`: visao geral base para KPIs e graficos
+- `src/pages/Asset.tsx`: base da pagina de analise por ativo
+
+## Supabase Auth
+
+No painel Supabase:
+
+1. Authentication -> Providers
+2. Habilitar Email/Password
+3. Opcional: habilitar confirmacao por email
+4. Para Google OAuth, habilitar provider Google e configurar:
+   - Redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback`
+   - Site URL/Redirect URLs para local e producao
+
+## Deploy (Vercel)
+
+Este repositorio usa `vercel.json` na raiz apontando para `web/`.
+
+- Build command: `cd web && npm run build`
+- Output: `web/dist`
+- Install: `cd web && npm install`
