@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "z-ai-project",
+  "private_key_id": "58fc1e704a574264efcf901b47ddd6c891cc5c29",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCkjQrbqVY/Zpnm\nka6czhbJ31K0K6+GrqZ+rDmgcBQnbqAL91SdsJSdNqwhaY/mF15Gc9/SSSF+CvRQ\nULYKKGsNQlN0rZsjPr+Spz9OY76nWMwsTxKO3Bj8u4UpXJs98jFkXeaP+hr5rKp9\nqWvNaNiuF60HVSt3KHrQjnbq7ftUC6+kbX44CaFNouwpY+yeLLdES6/cZLH/lsmK\nk5RKb/Sr9QMZ0tpXfY3woZwo6ieXnymtBjS6AQqQaBEbWBXqBAzLGLRuvAValqmE\n8/ErjAjUIXjcAaVN+jv32LzvW2ysjWnvXBHYu1B+K1lAiODFzxWSwLLj+K2kTesc\nazqkHN9/AgMBAAECggEAASYyG57wqZhgNq1w+uflxU1d7IQ84xx0aLHSxSMcguMK\nveCMGK9Pdi+VwXcI5pwlPYOiUudzz6yTUIxZ3DR5/QbAqbiPQ+p3+TOvDBSGx42l\nyVubzh15HbpSl3VXZKLr5/KlD0dotViqm7uSI8hkZCHiy1BMYdodzWS5dXeWuLmw\nq2gE26Y9l4J35mmG8mwKBXG22ISChjytLqPa4RgEDUcE+l3hXqQlGMPXnYgzjtlC\nJ4/0Gf/KwetWpllDepLZZMv6HCCheWWHrhnv4vF+AC6Q++7dCEAZw1dYA1kF4TM0\n3mdLkrrfG7uKd3eknykrFPWSbuTmBiJXTYKtDhejsQKBgQDP3X6v+J9RoanFzxiL\nhTMqhdTWvBH5RjAw0lJ6LA65fZpzSaw7RSanGAC7qV7OCHdRkSFKYSRr+F/q5e2y\n9lXqzMxLIhSU0dK5uZmKgNxZJh/rWPYWKzb/iHanCM+nRQP5uuvF3gStgRcXDEpI\npqP4hmx8hrTz3P2zZXy0gqPJyQKBgQDKp9MYJSufBz7YUkEo5mYX/57URFUkNJfW\nSIl+Q9CFtdXP2YrO0n7jKHLR5NL9dbxgC2hTrBUyjVxny0/K98FiN+WeOBMywjcx\nAkCwaoutDjwXCkxrguuO5eiBh84dPVL1r/m3FssoKRQgpnraOJAirYv2tuS3mf20\naEvANp0DBwKBgQDLTEVYlCA19ZgW6BqIcmj9gNEOh/hIRbZiOYIDDU4FauwBL5/s\nhBBuwlINOHSJq8wPEZNurJ2zn8Mn+WNGchjLwStZnGZmuuSPUw/xX2CjLF9xjZt5\nSSDMQUpSyZJWdXCS8Zcg+ai3jRbpKtMIRTr/mXFHRXR7Qbs7ltmlrlPEyQKBgFwa\nI+UwV3/iEhzMXVLSS4oSocPE/pEC2hMISny5I1bxiif5rY1Lu2FP68ca4Q1SafeY\nl6SXa9bayileDHipWxlhYBklUQxbmivK402KTsqq0oKCKrMeACKkuKPN7c36Je8F\nOE+Oq2woJz6jiugMlu07xIWvH4mWEejhEbRc3cUXAoGBAJbze17b1Ss/ja8tBiui\nnJzdKtknIj4dvEiRWk9HWHNROm8+AbJGR4J8v/BPaasCuHIzEIgw87/2jFo5Nv28\nWXbDH5dVCmEeLEKIVBF/t08FyfvQgIUtLGSmcZdbbawLB+1JYaD08bgaSZySz8/P\nhGPCycxRn0NGSLH2p3/83I+G\n-----END PRIVATE KEY-----\n",
+  "client_email": "sync-rentabilidade@z-ai-project.iam.gserviceaccount.com",
+  "client_id": "102628471358805663953",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sync-rentabilidade%40z-ai-project.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
