@@ -59,8 +59,7 @@ export default function DashboardPage() {
   const { lastRun, isLoading, isSyncing, error, runSync, refresh } = useSync()
   const {
     portfolio,
-    allocation,
-    metrics,
+    allocationByMonth,
     isLoading: isAnalyticsLoading,
     error: analyticsError,
   } = useAnalyticsData(isAuthorizedForAnalytics)
@@ -101,6 +100,39 @@ export default function DashboardPage() {
       end: filteredPortfolio[filteredPortfolio.length - 1].mesLabel,
     }
   }, [filteredPortfolio])
+
+  const filteredMetrics = useMemo(() => {
+    if (!filteredPortfolio.length) {
+      return {
+        patrimonio: 0,
+        rentabilidadeMes: 0,
+        retornoAcumulado: 0,
+        rentabilidadeMedia: 0,
+      }
+    }
+
+    const latest = filteredPortfolio[filteredPortfolio.length - 1]
+    const retornoAcumulado =
+      filteredPortfolio.reduce((acc, point) => acc * (1 + point.rentabilidadeMes), 1) - 1
+    const rentabilidadeMedia =
+      filteredPortfolio.reduce((acc, point) => acc + point.rentabilidadeMes, 0) / filteredPortfolio.length
+
+    return {
+      patrimonio: latest.patrimonio,
+      rentabilidadeMes: latest.rentabilidadeMes,
+      retornoAcumulado,
+      rentabilidadeMedia,
+    }
+  }, [filteredPortfolio])
+
+  const filteredAllocation = useMemo(() => {
+    if (!filteredPortfolio.length) {
+      return []
+    }
+
+    const lastFilteredMonth = filteredPortfolio[filteredPortfolio.length - 1].mes
+    return allocationByMonth[lastFilteredMonth] ?? []
+  }, [allocationByMonth, filteredPortfolio])
 
   return (
     <div className="space-y-6">
@@ -187,23 +219,23 @@ export default function DashboardPage() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           title="Patrimonio total"
-          value={isAuthorizedForAnalytics ? formatMoney(metrics.currentPatrimonio) : "Restrito"}
+          value={isAuthorizedForAnalytics ? formatMoney(filteredMetrics.patrimonio) : "Restrito"}
           subtitle="Carteira consolidada"
         />
         <KpiCard
           title="Rentabilidade mes"
-          value={isAuthorizedForAnalytics ? formatPercent(metrics.currentRentabilidade) : "Restrito"}
+          value={isAuthorizedForAnalytics ? formatPercent(filteredMetrics.rentabilidadeMes) : "Restrito"}
           subtitle="Base: acao Patrimonio"
         />
         <KpiCard
           title="Retorno acumulado"
-          value={isAuthorizedForAnalytics ? formatPercent(metrics.currentRetornoAcumulado) : "Restrito"}
+          value={isAuthorizedForAnalytics ? formatPercent(filteredMetrics.retornoAcumulado) : "Restrito"}
           subtitle="Acumulado multiplicativo"
         />
         <KpiCard
-          title="Comparativo mercado"
-          value="Em breve"
-          subtitle="Carteira vs IBOV vs CDI"
+          title="Rentabilidade media"
+          value={isAuthorizedForAnalytics ? formatPercent(filteredMetrics.rentabilidadeMedia) : "Restrito"}
+          subtitle="Media simples no periodo filtrado"
         />
       </section>
 
@@ -283,11 +315,11 @@ export default function DashboardPage() {
                   <CardHeader>
                     <CardTitle className="text-base">Distribuicao da carteira</CardTitle>
                     <CardDescription>
-                      Alocacao percentual por ativo no mes mais recente.
+                      Alocacao percentual por ativo no ultimo mes do filtro selecionado.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <AllocationDonutChart data={allocation} />
+                    <AllocationDonutChart data={filteredAllocation} />
                   </CardContent>
                 </Card>
               </section>

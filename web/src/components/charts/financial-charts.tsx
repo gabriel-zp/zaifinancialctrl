@@ -5,7 +5,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Legend,
   Line,
   LineChart,
   Pie,
@@ -186,13 +185,6 @@ export function AllocationDonutChart({ data }: { data: AllocationPoint[] }) {
           ))}
         </Pie>
         <Tooltip content={<PieTooltip />} />
-        <Legend
-          verticalAlign="bottom"
-          align="center"
-          iconType="circle"
-          iconSize={8}
-          formatter={(value) => <span className="text-xs text-slate-600">{value}</span>}
-        />
       </PieChart>
     </ResponsiveContainer>
   )

@@ -15,6 +15,12 @@ export interface AllocationPoint {
   percentual: number
 }
 
+export interface AllocationSeriesRow {
+  mes: string
+  acao: string
+  valor: number
+}
+
 export interface PortfolioMetrics {
   currentPatrimonio: number
   currentRentabilidade: number

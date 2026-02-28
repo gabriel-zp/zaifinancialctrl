@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase"
-import type { AllocationPoint, PortfolioRow } from "@/types/analytics"
+import type { AllocationPoint, AllocationSeriesRow, PortfolioRow } from "@/types/analytics"
 
 interface PortfolioQueryRow {
   mes: string
@@ -8,6 +8,7 @@ interface PortfolioQueryRow {
 }
 
 interface AllocationQueryRow {
+  mes?: string
   acao: string
   valor_final_mes: number | string | null
 }
@@ -92,4 +93,27 @@ export async function getLatestAllocation(): Promise<AllocationPoint[]> {
       percentual: row.valor / total,
     }))
     .sort((a, b) => b.valor - a.valor)
+}
+
+export async function getAllocationSeries(): Promise<AllocationSeriesRow[]> {
+  const { data, error } = await supabase
+    .from("rentabilidade_treated")
+    .select("mes, acao, valor_final_mes")
+    .neq("acao", "Patrimônio")
+    .neq("acao", "SALDOS")
+    .order("mes", { ascending: true })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  const rows = (data ?? []) as AllocationQueryRow[]
+
+  return rows
+    .map((row) => ({
+      mes: row.mes,
+      acao: row.acao,
+      valor: toNumber(row.valor_final_mes),
+    }))
+    .filter((row) => row.valor > 0)
 }

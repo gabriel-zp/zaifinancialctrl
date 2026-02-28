@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layout/app-shell"
 import { LoadingScreen } from "@/components/shared/loading-screen"
 import { useAuth } from "@/hooks/use-auth"
 import AssetPage from "@/pages/Asset"
+import AllocationPage from "@/pages/Allocation"
 import DashboardPage from "@/pages/Dashboard"
 import LoginPage from "@/pages/Login"
 import NotFoundPage from "@/pages/NotFound"
@@ -54,6 +55,17 @@ function App() {
           <ProtectedRoute>
             <AppShell>
               <DashboardPage />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/alocacao-carteira"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <AllocationPage />
             </AppShell>
           </ProtectedRoute>
         }

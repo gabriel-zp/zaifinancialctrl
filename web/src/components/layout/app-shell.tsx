@@ -1,12 +1,13 @@
 import type { ReactNode } from "react"
 import { NavLink } from "react-router-dom"
-import { LayoutDashboard, LineChart, LogOut, Search, Wallet } from "lucide-react"
+import { LayoutDashboard, LineChart, LogOut, PieChart, Search, Wallet } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/alocacao-carteira", label: "Alocacao de Carteira", icon: PieChart },
   { to: "/ativo", label: "Ativo", icon: LineChart },
 ]
 

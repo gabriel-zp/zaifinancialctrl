@@ -18,24 +18,33 @@ export async function getLastSyncRun(): Promise<SyncRun | null> {
 }
 
 export async function triggerManualSync(): Promise<SyncFunctionResponse> {
-  const { data, error } = await supabase.functions.invoke<SyncFunctionResponse>(
-    "sync-rentabilidade",
-    {
-      body: {},
-      headers: {
-        "x-trigger": "manual",
-        ...(env.syncAdminSecret ? { "x-admin-secret": env.syncAdminSecret } : {}),
-      },
-    }
-  )
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
 
-  if (error) {
-    throw new Error(error.message)
+  const response = await fetch(`${env.supabaseUrl}/functions/v1/sync-rentabilidade`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-trigger": "manual",
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      ...(env.syncAdminSecret ? { "x-admin-secret": env.syncAdminSecret } : {}),
+    },
+    body: JSON.stringify({}),
+  })
+
+  const payload = (await response.json().catch(() => null)) as SyncFunctionResponse | { message?: string } | null
+
+  if (!response.ok) {
+    const message = payload && "message" in payload && payload.message
+      ? payload.message
+      : `Sync failed with status ${response.status}`
+    throw new Error(message)
   }
 
-  if (!data) {
+  if (!payload || !("ok" in payload)) {
     throw new Error("Sync function returned no payload")
   }
 
-  return data
+  return payload as SyncFunctionResponse
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
-import { getLatestAllocation, getPortfolioSeries } from "@/services/analytics-service"
-import type { AllocationPoint, PortfolioMetrics, PortfolioPoint } from "@/types/analytics"
+import { getAllocationSeries, getPortfolioSeries } from "@/services/analytics-service"
+import type { AllocationPoint, AllocationSeriesRow, PortfolioMetrics, PortfolioPoint } from "@/types/analytics"
 
 function monthLabel(dateIso: string): string {
   const date = new Date(`${dateIso}T00:00:00`)
@@ -23,16 +23,51 @@ function buildPortfolioPoints(
   })
 }
 
+function buildAllocationByMonth(rows: AllocationSeriesRow[]): Record<string, AllocationPoint[]> {
+  const grouped = new Map<string, AllocationSeriesRow[]>()
+
+  for (const row of rows) {
+    const monthRows = grouped.get(row.mes)
+    if (monthRows) {
+      monthRows.push(row)
+      continue
+    }
+
+    grouped.set(row.mes, [row])
+  }
+
+  const out: Record<string, AllocationPoint[]> = {}
+
+  for (const [mes, monthRows] of grouped.entries()) {
+    const total = monthRows.reduce((acc, row) => acc + row.valor, 0)
+
+    if (!total) {
+      out[mes] = []
+      continue
+    }
+
+    out[mes] = monthRows
+      .map((row) => ({
+        acao: row.acao,
+        valor: row.valor,
+        percentual: row.valor / total,
+      }))
+      .sort((a, b) => b.valor - a.valor)
+  }
+
+  return out
+}
+
 export function useAnalyticsData(enabled: boolean) {
   const [portfolio, setPortfolio] = useState<PortfolioPoint[]>([])
-  const [allocation, setAllocation] = useState<AllocationPoint[]>([])
+  const [allocationByMonth, setAllocationByMonth] = useState<Record<string, AllocationPoint[]>>({})
   const [isLoading, setIsLoading] = useState(enabled)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!enabled) {
       setPortfolio([])
-      setAllocation([])
+      setAllocationByMonth({})
       setError(null)
       setIsLoading(false)
       return
@@ -47,7 +82,7 @@ export function useAnalyticsData(enabled: boolean) {
       try {
         const [portfolioRows, allocationRows] = await Promise.all([
           getPortfolioSeries(),
-          getLatestAllocation(),
+          getAllocationSeries(),
         ])
 
         if (!mounted) {
@@ -55,7 +90,7 @@ export function useAnalyticsData(enabled: boolean) {
         }
 
         setPortfolio(buildPortfolioPoints(portfolioRows))
-        setAllocation(allocationRows)
+        setAllocationByMonth(buildAllocationByMonth(allocationRows))
       } catch (err) {
         if (!mounted) {
           return
@@ -97,7 +132,7 @@ export function useAnalyticsData(enabled: boolean) {
 
   return {
     portfolio,
-    allocation,
+    allocationByMonth,
     metrics,
     isLoading,
     error,
