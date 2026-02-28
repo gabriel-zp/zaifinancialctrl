@@ -7,8 +7,13 @@ interface PortfolioQueryRow {
   rentabilidade_mes: number | string | null
 }
 
-interface AllocationQueryRow {
-  mes?: string
+interface LatestAllocationQueryRow {
+  acao: string
+  valor_final_mes: number | string | null
+}
+
+interface AllocationSeriesQueryRow {
+  mes: string
   acao: string
   valor_final_mes: number | string | null
 }
@@ -72,7 +77,7 @@ export async function getLatestAllocation(): Promise<AllocationPoint[]> {
     throw new Error(error.message)
   }
 
-  const rows = (data ?? []) as AllocationQueryRow[]
+  const rows = (data ?? []) as LatestAllocationQueryRow[]
   const normalizedRows = rows
     .map((row) => ({
       acao: row.acao,
@@ -107,7 +112,7 @@ export async function getAllocationSeries(): Promise<AllocationSeriesRow[]> {
     throw new Error(error.message)
   }
 
-  const rows = (data ?? []) as AllocationQueryRow[]
+  const rows = (data ?? []) as AllocationSeriesQueryRow[]
 
   return rows
     .map((row) => ({
