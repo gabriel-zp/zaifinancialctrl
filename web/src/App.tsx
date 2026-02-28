@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth"
 import AssetPage from "@/pages/Asset"
 import AllocationPage from "@/pages/Allocation"
 import DashboardPage from "@/pages/Dashboard"
+import FunctionsPage from "@/pages/Functions"
 import LoginPage from "@/pages/Login"
 import NotFoundPage from "@/pages/NotFound"
 
@@ -66,6 +67,17 @@ function App() {
           <ProtectedRoute>
             <AppShell>
               <AllocationPage />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/functions"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <FunctionsPage />
             </AppShell>
           </ProtectedRoute>
         }
