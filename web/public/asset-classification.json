@@ -46,15 +46,17 @@
     "FUNDO BTG CDB PLUS FIRF CRPR",
     "FUNDO BTG DIGITAL SELIC FIRF",
     "FUNDO PORTO DI",
-    "GOLD + CASH",
     "ITAU CDB NASSER",
     "LCA - BB",
     "LFT-S11 BTG NASSER",
     "LFTS11 BTG ALEXA",
-    "MOEDAS - WISE",
     "TESOURO ALEXA CLEAR IPCA+2029 7,77%",
     "TESOURO ALEXA IPCA+ 2029",
     "Tesouro Alexa",
     "Tesouro Nasser"
+  ],
+  "gold_cash": [
+    "GOLD + CASH",
+    "MOEDAS - WISE"
   ]
 }

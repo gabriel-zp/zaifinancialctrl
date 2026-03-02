@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { AllocationDonutChart } from "@/components/charts/financial-charts"
 import { DateRangeSlider } from "@/components/shared/date-range-slider"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,18 +11,31 @@ import type { AllocationPoint, PortfolioPoint } from "@/types/analytics"
 type AssetClassification = {
   renda_variavel: string[]
   renda_fixa: string[]
+  gold_cash: string[]
+}
+
+type AllocationBreakdownRow = AllocationPoint & {
+  percentualCarteira: number
 }
 
 type ClassifiedAllocation = {
-  rendaVariavel: AllocationPoint[]
-  rendaFixa: AllocationPoint[]
+  rendaVariavel: AllocationBreakdownRow[]
+  rendaFixa: AllocationBreakdownRow[]
+  goldCash: AllocationBreakdownRow[]
   totalRendaVariavel: number
   totalRendaFixa: number
+  totalGoldCash: number
 }
+
+type GroupKey = "rendaVariavel" | "rendaFixa" | "goldCash"
+
+const GOLD_CASH_ASSET_KEY = normalizeKey("GOLD + CASH")
+const MOEDAS_WISE_ASSET_KEY = normalizeKey("MOEDAS - WISE")
 
 const EMPTY_CLASSIFICATION: AssetClassification = {
   renda_variavel: [],
   renda_fixa: [],
+  gold_cash: [],
 }
 
 function normalizeKey(value: string): string {
@@ -45,33 +59,49 @@ function formatPercent(value: number): string {
   return `${(value * 100).toFixed(2)}%`
 }
 
-function buildClassAllocation(rows: AllocationPoint[]): AllocationPoint[] {
-  const total = rows.reduce((acc, row) => acc + row.valor, 0)
+function groupLabel(key: GroupKey): string {
+  if (key === "rendaFixa") {
+    return "Renda Fixa"
+  }
+  if (key === "goldCash") {
+    return "Gold/Cash"
+  }
+  return "Renda Variavel"
+}
 
-  if (!total) {
+function buildClassAllocation(rows: AllocationPoint[], totalCarteira: number): AllocationBreakdownRow[] {
+  const totalGrupo = rows.reduce((acc, row) => acc + row.valor, 0)
+
+  if (!totalGrupo) {
     return []
   }
 
   return rows
     .map((row) => ({
       ...row,
-      percentual: row.valor / total,
+      percentual: row.valor / totalGrupo,
+      percentualCarteira: totalCarteira ? row.valor / totalCarteira : 0,
     }))
     .sort((a, b) => b.valor - a.valor)
 }
 
-function classifyAllocation(
-  rows: AllocationPoint[],
-  classification: AssetClassification
-): ClassifiedAllocation {
+function classifyAllocation(rows: AllocationPoint[], classification: AssetClassification): ClassifiedAllocation {
   const rendaVariavelSet = new Set(classification.renda_variavel.map(normalizeKey))
   const rendaFixaSet = new Set(classification.renda_fixa.map(normalizeKey))
+  const goldCashSet = new Set(classification.gold_cash.map(normalizeKey))
 
   const rendaVariavel: AllocationPoint[] = []
   const rendaFixa: AllocationPoint[] = []
+  const goldCash: AllocationPoint[] = []
 
   for (const row of rows) {
     const key = normalizeKey(row.acao)
+
+    if (goldCashSet.has(key)) {
+      goldCash.push(row)
+      continue
+    }
+
     if (rendaVariavelSet.has(key)) {
       rendaVariavel.push(row)
       continue
@@ -82,21 +112,25 @@ function classifyAllocation(
       continue
     }
 
-    rendaFixa.push(row)
+    rendaVariavel.push(row)
   }
 
   const totalRendaVariavel = rendaVariavel.reduce((acc, row) => acc + row.valor, 0)
   const totalRendaFixa = rendaFixa.reduce((acc, row) => acc + row.valor, 0)
+  const totalGoldCash = goldCash.reduce((acc, row) => acc + row.valor, 0)
+  const totalCarteira = totalRendaVariavel + totalRendaFixa + totalGoldCash
 
   return {
-    rendaVariavel: buildClassAllocation(rendaVariavel),
-    rendaFixa: buildClassAllocation(rendaFixa),
+    rendaVariavel: buildClassAllocation(rendaVariavel, totalCarteira),
+    rendaFixa: buildClassAllocation(rendaFixa, totalCarteira),
+    goldCash: buildClassAllocation(goldCash, totalCarteira),
     totalRendaVariavel,
     totalRendaFixa,
+    totalGoldCash,
   }
 }
 
-function AllocationTable({ title, data }: { title: string; data: AllocationPoint[] }) {
+function AllocationTable({ title, data }: { title: string; data: AllocationBreakdownRow[] }) {
   return (
     <Card className="rounded-2xl border-slate-200 shadow-none">
       <CardHeader>
@@ -113,7 +147,8 @@ function AllocationTable({ title, data }: { title: string; data: AllocationPoint
                 <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
                   <th className="px-2 py-2 text-left font-medium">Ativo</th>
                   <th className="px-2 py-2 text-right font-medium">Valor</th>
-                  <th className="px-2 py-2 text-right font-medium">%</th>
+                  <th className="px-2 py-2 text-right font-medium">% no grupo</th>
+                  <th className="px-2 py-2 text-right font-medium">% da carteira</th>
                 </tr>
               </thead>
               <tbody>
@@ -122,6 +157,7 @@ function AllocationTable({ title, data }: { title: string; data: AllocationPoint
                     <td className="px-2 py-2 text-slate-800">{row.acao}</td>
                     <td className="px-2 py-2 text-right text-slate-700">{formatMoney(row.valor)}</td>
                     <td className="px-2 py-2 text-right text-slate-700">{formatPercent(row.percentual)}</td>
+                    <td className="px-2 py-2 text-right text-slate-700">{formatPercent(row.percentualCarteira)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -133,12 +169,27 @@ function AllocationTable({ title, data }: { title: string; data: AllocationPoint
   )
 }
 
+function DonutCard({ title, description, data }: { title: string; description: string; data: AllocationPoint[] }) {
+  return (
+    <Card className="rounded-2xl border-slate-200 shadow-none">
+      <CardHeader>
+        <CardTitle className="text-base">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <AllocationDonutChart data={data} />
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function AllocationPage() {
   const { user } = useAuth()
   const isAuthorizedForAnalytics = canViewAnalyticsData(user?.email)
   const [dateRange, setDateRange] = useState<[number, number]>([0, 0])
   const [classification, setClassification] = useState<AssetClassification>(EMPTY_CLASSIFICATION)
   const [classificationError, setClassificationError] = useState<string | null>(null)
+  const [selectedTrendGroup, setSelectedTrendGroup] = useState<GroupKey>("rendaVariavel")
 
   const { portfolio, allocationByMonth, isLoading, error } = useAnalyticsData(isAuthorizedForAnalytics)
 
@@ -162,6 +213,7 @@ export default function AllocationPage() {
         setClassification({
           renda_variavel: data.renda_variavel ?? [],
           renda_fixa: data.renda_fixa ?? [],
+          gold_cash: data.gold_cash ?? [],
         })
       } catch (fetchError) {
         if (!mounted) {
@@ -234,16 +286,82 @@ export default function AllocationPage() {
   )
 
   const split = useMemo(() => {
-    const total = classified.totalRendaVariavel + classified.totalRendaFixa
+    const total = classified.totalRendaVariavel + classified.totalRendaFixa + classified.totalGoldCash
     if (!total) {
-      return { rendaVariavel: 0, rendaFixa: 0 }
+      return { rendaVariavel: 0, rendaFixa: 0, goldCash: 0 }
     }
 
     return {
       rendaVariavel: classified.totalRendaVariavel / total,
       rendaFixa: classified.totalRendaFixa / total,
+      goldCash: classified.totalGoldCash / total,
     }
-  }, [classified.totalRendaFixa, classified.totalRendaVariavel])
+  }, [classified.totalGoldCash, classified.totalRendaFixa, classified.totalRendaVariavel])
+
+  const classSummaryRows = useMemo<AllocationBreakdownRow[]>(() => {
+    const totalCarteira =
+      classified.totalRendaVariavel + classified.totalRendaFixa + classified.totalGoldCash
+
+    if (!totalCarteira) {
+      return []
+    }
+
+    let goldCashTotal = 0
+    let moedasWiseTotal = 0
+
+    for (const row of classified.goldCash) {
+      const key = normalizeKey(row.acao)
+      if (key === MOEDAS_WISE_ASSET_KEY) {
+        moedasWiseTotal += row.valor
+      } else if (key === GOLD_CASH_ASSET_KEY) {
+        goldCashTotal += row.valor
+      } else {
+        goldCashTotal += row.valor
+      }
+    }
+
+    const rawRows = [
+      { acao: "Renda Variavel", valor: classified.totalRendaVariavel },
+      { acao: "Renda Fixa", valor: classified.totalRendaFixa },
+      { acao: "Gold + CASH", valor: goldCashTotal },
+      { acao: "MOEDAS - WISE", valor: moedasWiseTotal },
+    ].filter((row) => row.valor > 0)
+
+    return rawRows.map((row) => ({
+      ...row,
+      percentual: row.valor / totalCarteira,
+      percentualCarteira: row.valor / totalCarteira,
+    }))
+  }, [classified.goldCash, classified.totalGoldCash, classified.totalRendaFixa, classified.totalRendaVariavel])
+
+  const classSummaryDonutData = useMemo<AllocationPoint[]>(() => {
+    return classSummaryRows.map((row) => ({
+      acao: row.acao,
+      valor: row.valor,
+      percentual: row.percentual,
+    }))
+  }, [classSummaryRows])
+
+  const groupTrendData = useMemo(() => {
+    return filteredPortfolio.map((point) => {
+      const monthRows = allocationByMonth[point.mes] ?? []
+      const monthClassified = classifyAllocation(monthRows, classification)
+      const monthTotal =
+        monthClassified.totalRendaVariavel + monthClassified.totalRendaFixa + monthClassified.totalGoldCash
+
+      const selectedTotal =
+        selectedTrendGroup === "rendaFixa"
+          ? monthClassified.totalRendaFixa
+          : selectedTrendGroup === "goldCash"
+            ? monthClassified.totalGoldCash
+            : monthClassified.totalRendaVariavel
+
+      return {
+        mesLabel: point.mesLabel,
+        percentual: monthTotal ? selectedTotal / monthTotal : 0,
+      }
+    })
+  }, [allocationByMonth, classification, filteredPortfolio, selectedTrendGroup])
 
   return (
     <div className="space-y-6">
@@ -308,52 +426,126 @@ export default function AllocationPage() {
             </Card>
           ) : (
             <>
-              <section className="grid gap-4 md:grid-cols-2">
+              <section className="grid gap-4 md:grid-cols-3">
                 <Card className="rounded-2xl border-slate-200 shadow-none">
                   <CardHeader>
-                    <CardTitle className="text-base">Divisao da carteira por classe</CardTitle>
-                    <CardDescription>Com base no ultimo mes do filtro selecionado.</CardDescription>
+                    <CardTitle className="text-base">Renda Variavel</CardTitle>
+                    <CardDescription>Percentual no total da carteira.</CardDescription>
                   </CardHeader>
-                  <CardContent className="grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Renda fixa</p>
-                      <p className="mt-2 text-3xl font-semibold text-slate-900">{formatPercent(split.rendaFixa)}</p>
-                    </div>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Renda variavel</p>
-                      <p className="mt-2 text-3xl font-semibold text-slate-900">
-                        {formatPercent(split.rendaVariavel)}
-                      </p>
-                    </div>
+                  <CardContent>
+                    <p className="text-3xl font-semibold text-slate-900">{formatPercent(split.rendaVariavel)}</p>
+                  </CardContent>
+                </Card>
+
+                <Card className="rounded-2xl border-slate-200 shadow-none">
+                  <CardHeader>
+                    <CardTitle className="text-base">Renda Fixa</CardTitle>
+                    <CardDescription>Percentual no total da carteira.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-3xl font-semibold text-slate-900">{formatPercent(split.rendaFixa)}</p>
+                  </CardContent>
+                </Card>
+
+                <Card className="rounded-2xl border-slate-200 shadow-none">
+                  <CardHeader>
+                    <CardTitle className="text-base">Gold/Cash</CardTitle>
+                    <CardDescription>Percentual no total da carteira.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-3xl font-semibold text-slate-900">{formatPercent(split.goldCash)}</p>
                   </CardContent>
                 </Card>
               </section>
 
-              <section className="grid gap-4 xl:grid-cols-2">
+              <section>
                 <Card className="rounded-2xl border-slate-200 shadow-none">
-                  <CardHeader>
-                    <CardTitle className="text-base">Distribuicao - Renda Variavel</CardTitle>
-                    <CardDescription>Cada classe soma 100% dentro do proprio grafico.</CardDescription>
+                  <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <CardTitle className="text-base">Participacao da classe ao longo do tempo</CardTitle>
+                      <CardDescription>
+                        Serie temporal no periodo filtrado pelo slider.
+                      </CardDescription>
+                    </div>
+                    <label className="flex items-center gap-2 text-sm text-slate-600">
+                      Classe
+                      <select
+                        value={selectedTrendGroup}
+                        onChange={(event) => setSelectedTrendGroup(event.target.value as GroupKey)}
+                        className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm text-slate-700"
+                      >
+                        <option value="rendaVariavel">Renda Variavel</option>
+                        <option value="rendaFixa">Renda Fixa</option>
+                        <option value="goldCash">Gold/Cash</option>
+                      </select>
+                    </label>
                   </CardHeader>
                   <CardContent>
-                    <AllocationDonutChart data={classified.rendaVariavel} />
-                  </CardContent>
-                </Card>
-
-                <Card className="rounded-2xl border-slate-200 shadow-none">
-                  <CardHeader>
-                    <CardTitle className="text-base">Distribuicao - Renda Fixa</CardTitle>
-                    <CardDescription>Inclui ativos classificados como caixa/moedas no JSON.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <AllocationDonutChart data={classified.rendaFixa} />
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={groupTrendData} margin={{ top: 10, right: 8, bottom: 0, left: 0 }}>
+                        <CartesianGrid vertical={false} stroke="#e7edf6" strokeDasharray="4 4" />
+                        <XAxis
+                          dataKey="mesLabel"
+                          tickLine={false}
+                          axisLine={false}
+                          tick={{ fontSize: 12, fill: "#64748b" }}
+                        />
+                        <YAxis
+                          tickLine={false}
+                          axisLine={false}
+                          tick={{ fontSize: 12, fill: "#64748b" }}
+                          tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
+                        />
+                        <Tooltip
+                          formatter={(value) => formatPercent(typeof value === "number" ? value : 0)}
+                          labelFormatter={(label) => `${label} - ${groupLabel(selectedTrendGroup)}`}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="percentual"
+                          name={groupLabel(selectedTrendGroup)}
+                          stroke="#1f4db4"
+                          strokeWidth={2.5}
+                          dot={false}
+                          activeDot={{ r: 5, fill: "#1f4db4" }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
                   </CardContent>
                 </Card>
               </section>
 
-              <section className="grid gap-4 xl:grid-cols-2">
+              <section className="grid gap-4 xl:grid-cols-3">
+                <DonutCard
+                  title="Distribuicao - Renda Variavel"
+                  description="A soma da categoria e 100% no grafico."
+                  data={classified.rendaVariavel}
+                />
+                <DonutCard
+                  title="Distribuicao - Renda Fixa"
+                  description="A soma da categoria e 100% no grafico."
+                  data={classified.rendaFixa}
+                />
+                <DonutCard
+                  title="Distribuicao - Gold/Cash"
+                  description="A soma da categoria e 100% no grafico."
+                  data={classified.goldCash}
+                />
+              </section>
+
+              <section className="grid gap-4 xl:grid-cols-3">
                 <AllocationTable title="Tabela - Renda Variavel" data={classified.rendaVariavel} />
                 <AllocationTable title="Tabela - Renda Fixa" data={classified.rendaFixa} />
+                <AllocationTable title="Tabela - Gold/Cash" data={classified.goldCash} />
+              </section>
+
+              <section className="grid gap-4 xl:grid-cols-2">
+                <DonutCard
+                  title="Distribuicao geral por classe"
+                  description="Composicao entre RV, RF, Gold + CASH e MOEDAS - WISE no mes filtrado."
+                  data={classSummaryDonutData}
+                />
+                <AllocationTable title="Tabela - Distribuicao geral por classe" data={classSummaryRows} />
               </section>
             </>
           )}
